@@ -119,7 +119,7 @@ Important:
 """
 
     interaction = client.interactions.create(
-        model="gemini-3.1-flash-image",
+        model="gemini-3.1-flash-lite-image",
         input=prompt,
         response_format={
             "type": "image",
