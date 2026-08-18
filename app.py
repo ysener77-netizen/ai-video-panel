@@ -56,31 +56,32 @@ class ScenePlan(BaseModel):
         description="Karakterin karede yaptığı tek ana eylem."
     )
 
+    natural_behavior: str = Field(
+        description=(
+            "Bu anda gerçek bir insanın doğal olarak nasıl görüneceği "
+            "ve ne yapacağı."
+        )
+    )
+
     wardrobe_change_required: bool = Field(
         description=(
-            "Önceki sahnedeki kıyafetin gerçekten değiştirilmesi "
-            "gerekiyorsa true. Aksi halde false."
+            "Önceki kıyafetin gerçekten değiştirilmesi gerekiyorsa true."
         )
     )
 
     wardrobe_change_reason: str = Field(
-        description=(
-            "Kıyafet neden değişmeli veya neden aynı kalmalı."
-        )
+        description="Kıyafet neden değişmeli veya neden aynı kalmalı."
     )
 
     proposed_new_outfit: str = Field(
         description=(
-            "Yalnızca wardrobe_change_required true ise yeni kıyafetin "
-            "çok kesin tanımı. Renk, üst, alt, ayakkabı dahil. "
-            "Değişiklik gerekmiyorsa SAME."
+            "Kıyafet değişecekse renkleri ve parçaları kesin şekilde tanımla. "
+            "Değişmeyecekse SAME."
         )
     )
 
     accessories: str = Field(
-        description=(
-            "Sadece gerçekten gerekli aksesuarlar. Gerekmiyorsa none."
-        )
+        description="Yalnızca sahnede gerçekten gerekli aksesuarlar."
     )
 
     emotion: str = Field(
@@ -88,7 +89,7 @@ class ScenePlan(BaseModel):
     )
 
     pose: str = Field(
-        description="Beden duruşu."
+        description="Karakterin doğal beden duruşu."
     )
 
     camera: str = Field(
@@ -100,7 +101,7 @@ class ScenePlan(BaseModel):
     )
 
     continuity: str = Field(
-        description="Önceki sahneyle korunması gereken durum."
+        description="Önceki ve sonraki sahneyle korunması gereken durum."
     )
 
     must_include: list[str] = Field(
@@ -129,44 +130,43 @@ PERMANENT VISUAL STYLE:
 - bold clean dark outlines
 - rounded simplified human anatomy
 - rounded head construction
-- simple black dot eyes
-- minimal facial details
+- small simple black dot eyes
+- minimal nose and mouth
 - flat matte colors
-- subtle simple shading only
+- very subtle simple shading
 - low saturation
 - beige
 - muted brown
 - taupe
 - gray
 - charcoal
-- clean environments
+- simple clean environments
 - uncluttered composition
 - consistent line thickness
 - consistent character proportions
-- horizontal 16:9
+- horizontal 16:9 YouTube frame
 
 
 CHARACTER IDENTITY LOCK:
 
-The uploaded reference image defines the recurring protagonist's
-PERMANENT PHYSICAL AND DRAWING IDENTITY.
+The uploaded reference image defines WHO the recurring protagonist is.
 
 ALWAYS PRESERVE:
 
-- recognizable face
-- head shape
-- facial proportions
-- eye style
-- ear design
-- skin tone
-- approximate age
-- body proportions
-- overall simplified 2D cartoon construction
+- same recognizable face identity
+- same head shape
+- same facial proportions
+- same eye style
+- same ear design
+- same skin tone
+- same approximate age
+- same body proportions
+- same simplified cartoon construction
 
 
 REFERENCE IMAGE DOES NOT DEFINE:
 
-- current clothing
+- clothing
 - profession
 - hat
 - uniform
@@ -177,25 +177,26 @@ REFERENCE IMAGE DOES NOT DEFINE:
 - location
 
 
-WARDROBE CONTINUITY IS CRITICAL:
+WARDROBE CONTINUITY:
 
-When an ACTIVE OUTFIT LOCK is supplied in the prompt,
-reproduce that outfit exactly.
+When an ACTIVE OUTFIT LOCK is supplied,
+reproduce that clothing consistently.
 
-Preserve:
-- exact garment type
-- exact garment colors
-- exact pants color
-- exact shoe color
-- jacket / hoodie / shirt status
-- visible layers
+Do not randomly redesign clothing.
+Do not randomly change colors.
+Do not substitute garments.
 
-Do NOT redesign the outfit.
-Do NOT substitute colors.
-Do NOT randomly change clothing between consecutive scenes.
-
-Only use a different outfit when the prompt explicitly provides
+Only use a new outfit when the prompt explicitly provides
 a NEW ACTIVE OUTFIT LOCK.
+
+
+REAL-LIFE BEHAVIOR:
+
+The character must look and behave naturally for the exact situation.
+
+Do not merely place the character in the right location.
+His clothing, body state, pose, accessories and expression must make
+sense for that exact moment.
 
 
 STRICTLY AVOID:
@@ -273,10 +274,8 @@ def get_previous_outfit(scene_number):
     if scene_number <= 1:
         return ""
 
-    previous_scene = scene_number - 1
-
     return st.session_state.outfit_by_scene.get(
-        previous_scene,
+        scene_number - 1,
         ""
     )
 
@@ -300,14 +299,14 @@ def create_scene_plan(
     current_outfit_text = (
         previous_outfit
         if previous_outfit
-        else "NO PREVIOUS OUTFIT — establish an appropriate first outfit."
+        else "NONE — determine the correct outfit from the current scene."
     )
 
     director_prompt = f"""
-You are the Scene Director for a consistent illustrated YouTube story.
+You are the Scene Director for a consistent illustrated YouTube life-story.
 
-Your task is to understand ONE narration sentence and create
-a precise visual plan.
+You are NOT creating the image.
+You are planning ONE realistic still frame.
 
 PREVIOUS NARRATION:
 {previous_text if previous_text else "None"}
@@ -318,54 +317,52 @@ CURRENT NARRATION:
 NEXT NARRATION:
 {next_text if next_text else "None"}
 
-
 CURRENT LOCKED OUTFIT:
 {current_outfit_text}
 
 
-WARDROBE CONTINUITY IS EXTREMELY IMPORTANT.
+=================================================
+CORE RULE
+=================================================
 
-DEFAULT RULE:
-KEEP THE CURRENT LOCKED OUTFIT EXACTLY THE SAME.
+The scene must depict how a NORMAL PERSON would naturally look and behave
+at this exact moment in real life.
 
-Do NOT change:
-- shirt color
-- hoodie color
-- jacket color
-- pants color
-- shoes
-- visible clothing layers
-
-simply because the character enters another location.
+Do not only choose the correct location.
+Make clothing, posture, physical state, accessories and expression
+match the exact action and time.
 
 
-ONLY change outfit if the story context clearly requires a genuine
-wardrobe transition.
+=================================================
+WARDROBE LOGIC
+=================================================
 
+If there is a previous locked outfit:
 
-VALID OUTFIT CHANGE EXAMPLES:
+DEFAULT = KEEP IT EXACTLY THE SAME.
 
-- waking up in sleepwear then getting dressed for work
+Only change clothes when the story clearly requires a genuine wardrobe transition.
+
+VALID CHANGE EXAMPLES:
+
+- waking up in pajamas then getting dressed
 - explicitly changing clothes
 - showering and dressing
-- starting a job requiring a uniform
-- preparing for a formal interview
-- changing into pajamas before sleeping
-- changing into sports clothes for exercise
+- changing into a job uniform
+- changing into interview clothes
+- changing into pajamas before bed
+- changing into sports clothes
 
-
-NOT VALID REASONS TO CHANGE OUTFIT:
+NOT VALID REASONS:
 
 - entering a bus
 - entering an office
 - sitting at a desk
-- talking to the boss
 - walking outside
+- speaking to a boss
 - eating lunch
-- going home
 - changing camera angle
 - changing emotion
-
 
 If wardrobe_change_required is FALSE:
 
@@ -373,60 +370,123 @@ proposed_new_outfit MUST be exactly:
 SAME
 
 
-If wardrobe_change_required is TRUE:
+=================================================
+REAL-WORLD BEHAVIOR EXAMPLES
+=================================================
 
-create ONE precise canonical outfit description.
+NARRATION:
+"Sabah alarm çaldığında yataktan kalkıyorsun."
 
-Example:
+CORRECT:
 
-dark charcoal zip hoodie,
-muted beige crew-neck T-shirt,
-dark gray straight trousers,
-dark brown casual shoes,
-no hat
+- bedroom
+- early morning
+- character has just woken up
+- pajamas or sleepwear
+- barefoot or socks
+- sleepy posture
+- sitting up, rubbing eyes, stretching, or reaching for alarm
+- unmade bed
+- alarm clock visible
 
-This description will become permanently locked for following scenes,
-so choose sensible specific colors and garments.
+MUST NOT INCLUDE:
+
+- work shirt
+- office shirt
+- belt
+- work trousers
+- formal pants
+- shoes
+- backpack
+- jacket
+- hat
+- delivery uniform
 
 
-SEMANTIC RULES:
+NARRATION:
+"Hızlıca hazırlanıp evden çıkıyorsun."
 
-1. Illustrate the CURRENT sentence literally.
+CORRECT:
+
+- character is now dressed for the day
+- leaving through normal residential front door
+- ordinary workday clothing
+- awake and purposeful
+- shoes on
+
+POSSIBLE:
+
+- small everyday backpack only if useful
+
+MUST NOT INCLUDE:
+
+- suitcase
+- rolling luggage
+- travel bag
+- airport context
+- moving boxes
+- delivery uniform
+
+
+NARRATION:
+"Kalabalık bir otobüste işe doğru yolculuk ediyorsun."
+
+CORRECT:
+
+- crowded urban public bus
+- commuting to work
+- EXACT SAME workday outfit from previous scene
+- natural commuter posture
+
+MUST NOT INCLUDE:
+
+- vacation luggage
+- tour bus
+- airport shuttle
+- new outfit
+- delivery uniform
+
+
+NARRATION:
+"Masana geçip bilgisayarını açıyorsun."
+
+CORRECT:
+
+- normal office desk
+- office environment
+- SAME outfit as commute scene
+- character opening or using computer
+
+MUST NOT INCLUDE:
+
+- delivery uniform
+- delivery cap
+- warehouse
+- parcel
+- factory
+
+
+=================================================
+SEMANTIC RULES
+=================================================
+
+1. Illustrate ONLY the CURRENT sentence.
 
 2. Previous and next sentences are context only.
 
-3. Do not invent unrelated events.
+3. Do not invent another event.
 
-4. Do not interpret leaving home as travel or vacation.
+4. Do not exaggerate ordinary actions.
 
-5. Do not add luggage unless explicitly necessary.
+5. Do not interpret leaving home as travel.
 
-6. Never infer occupation from the character reference image.
+6. Do not add luggage unless explicitly required.
 
-7. Accessories should be minimal and logically required.
+7. Never infer profession from the character reference image.
 
+8. Preserve continuity.
 
-EXAMPLE:
-
-Previous:
-"Sabah alarm çaldığında yataktan kalkıyorsun."
-
-Current locked outfit:
-muted taupe striped pajamas
-
-Current:
-"Hızlıca hazırlanıp evden çıkıyorsun."
-
-This IS a legitimate wardrobe change because the person changes
-from sleepwear into workday clothing.
-
-Choose ONE precise workday outfit and lock it.
-
-
-Next:
-"Kalabalık bir otobüste işe doğru yolculuk ediyorsun."
-
-The outfit MUST NOT change again.
+9. Be conservative and literal.
 """
 
     response = client.models.generate_content(
@@ -443,15 +503,13 @@ The outfit MUST NOT change again.
             "Scene Director sonuç döndürmedi."
         )
 
-    plan = ScenePlan.model_validate_json(
+    return ScenePlan.model_validate_json(
         response.text
     )
 
-    return plan
-
 
 # =========================================================
-# OUTFIT LOCK KARARI
+# OUTFIT LOCK
 # =========================================================
 
 def resolve_outfit(
@@ -463,19 +521,22 @@ def resolve_outfit(
         scene_number
     )
 
-    # İlk sahne
+    # İlk sahne: Director belirler
     if not previous_outfit:
 
         if (
             plan.proposed_new_outfit
             and plan.proposed_new_outfit.upper() != "SAME"
         ):
+
             active_outfit = plan.proposed_new_outfit
 
         else:
+
+            # İlk sahnede fallback yok.
+            # Director kıyafeti doğru belirlemek zorunda.
             active_outfit = (
-                "simple muted taupe casual clothing, "
-                "dark gray trousers, brown casual shoes, no hat"
+                "scene-appropriate clothing determined by the exact narration"
             )
 
     # Gerçek kıyafet değişimi
@@ -486,7 +547,7 @@ def resolve_outfit(
 
         active_outfit = plan.proposed_new_outfit
 
-    # Aynı kıyafet KELİMESİ KELİMESİNE devam
+    # Aynı kıyafet devam
     else:
 
         active_outfit = previous_outfit
@@ -515,19 +576,19 @@ def build_image_prompt(
         channel_name
     ]
 
-    include_text = (
+    must_include = (
         ", ".join(plan.must_include)
         if plan.must_include
         else "None"
     )
 
-    forbidden_text = (
+    must_not_include = (
         ", ".join(plan.must_not_include)
         if plan.must_not_include
         else "None"
     )
 
-    prompt = f"""
+    return f"""
 {style}
 
 
@@ -539,110 +600,126 @@ NARRATION:
 "{narration}"
 
 
-SCENE PLAN:
-
+=================================================
+SCENE DIRECTOR PLAN
+=================================================
 
 LOCATION:
 {plan.location}
 
-
 TIME:
 {plan.time_of_day}
 
-
-ACTION:
+MAIN ACTION:
 {plan.main_action}
 
+NATURAL HUMAN BEHAVIOR:
+{plan.natural_behavior}
 
 EMOTION:
 {plan.emotion}
 
-
 POSE:
 {plan.pose}
-
 
 CAMERA:
 {plan.camera}
 
-
 BACKGROUND:
 {plan.background}
 
-
 ACCESSORIES:
 {plan.accessories}
-
 
 CONTINUITY:
 {plan.continuity}
 
 
-========================================
-
+=================================================
 ACTIVE OUTFIT LOCK
+=================================================
 
 {active_outfit}
 
-========================================
+
+The ACTIVE OUTFIT LOCK controls the protagonist's clothing.
+
+If this outfit is sleepwear:
+keep it as sleepwear.
+
+If this outfit is workday clothing:
+keep the same garments and same colors exactly.
+
+Do not substitute garments.
+Do not substitute colors.
+Do not add a hat unless explicitly included.
+Do not add a bag unless scene plan requires one.
 
 
-OUTFIT LOCK IS MANDATORY.
+=================================================
+CHARACTER REFERENCE
+=================================================
 
-The protagonist must wear EXACTLY this outfit.
+The uploaded reference image defines:
 
-Do not:
-- change garment colors
-- replace a hoodie with a jacket
-- replace a shirt with another shirt
-- change pants color
-- change shoe color
-- add a hat
-- remove a visible layer
+- character identity
+- face
+- head shape
+- body proportions
+- drawing language
 
-unless the ACTIVE OUTFIT LOCK explicitly says so.
+It does NOT define:
 
-
-REFERENCE IMAGE:
-
-The reference image defines CHARACTER IDENTITY.
-
-The ACTIVE OUTFIT LOCK defines CLOTHING.
-
-Do not confuse these two.
+- current clothing
+- current profession
+- accessories
+- pose
+- location
 
 
-MUST INCLUDE:
-{include_text}
+=================================================
+MUST INCLUDE
+=================================================
+
+{must_include}
 
 
-MUST NOT INCLUDE:
-{forbidden_text}
+=================================================
+STRICTLY MUST NOT INCLUDE
+=================================================
+
+{must_not_include}
 
 
-FINAL RULES:
+Anything listed above must not appear anywhere in the frame.
 
-- exactly one still scene
-- exact narration moment
-- no unrelated events
-- no invented props
-- same recurring protagonist
-- same character construction
+
+=================================================
+FINAL IMAGE RULES
+=================================================
+
+- exactly ONE still frame
+- literal current narration moment
+- natural real-life behavior
+- correct clothing for this exact moment
+- same recurring protagonist identity
 - exact ACTIVE OUTFIT LOCK
+- no invented event
+- no irrelevant objects
 - simple 2D cartoon style
-- suitable for subtle zoom/pan
+- clean composition
+- suitable for gentle zoom or pan
 - horizontal 16:9
 - no text
+- no captions
 - no subtitles
 - no logos
 - no watermarks
 """
 
-    return prompt
-
 
 # =========================================================
-# REFERANS GÖRSEL PART
+# REFERANS PART
 # =========================================================
 
 def image_to_part(image):
@@ -803,7 +880,7 @@ if uploaded_reference is not None:
 
         st.success(
             "Karakter kimliği referanstan korunacak. "
-            "Kıyafet ise hikâyedeki wardrobe lock sistemiyle yönetilecek."
+            "Kıyafet ve davranış sahne mantığıyla yönetilecek."
         )
 
 
@@ -877,8 +954,8 @@ if st.session_state.sentences:
 
     approved_count = sum(
         1
-        for value in
-        st.session_state.approved.values()
+        for value
+        in st.session_state.approved.values()
         if value
     )
 
@@ -951,7 +1028,7 @@ if st.session_state.sentences:
 
 
             # ---------------------------------
-            # OUTFIT GÖSTER
+            # OUTFIT LOCK
             # ---------------------------------
 
             if index in st.session_state.outfit_by_scene:
@@ -989,8 +1066,20 @@ if st.session_state.sentences:
 
 
                     st.write(
+                        f"**Zaman:** "
+                        f"{plan.time_of_day}"
+                    )
+
+
+                    st.write(
                         f"**Eylem:** "
                         f"{plan.main_action}"
+                    )
+
+
+                    st.write(
+                        f"**Doğal davranış:** "
+                        f"{plan.natural_behavior}"
                     )
 
 
@@ -1007,7 +1096,7 @@ if st.session_state.sentences:
 
 
                     st.write(
-                        f"**Yeni kıyafet önerisi:** "
+                        f"**Yeni kıyafet:** "
                         f"{plan.proposed_new_outfit}"
                     )
 
@@ -1015,6 +1104,30 @@ if st.session_state.sentences:
                     st.write(
                         f"**Duygu:** "
                         f"{plan.emotion}"
+                    )
+
+
+                    st.write(
+                        f"**Poz:** "
+                        f"{plan.pose}"
+                    )
+
+
+                    st.write(
+                        f"**Aksesuar:** "
+                        f"{plan.accessories}"
+                    )
+
+
+                    st.write(
+                        "**Kesinlikle olmasın:** "
+                        + (
+                            ", ".join(
+                                plan.must_not_include
+                            )
+                            if plan.must_not_include
+                            else "Yok"
+                        )
                     )
 
 
@@ -1060,9 +1173,6 @@ if st.session_state.sentences:
                 ):
 
 
-                    # Sahne sırasını zorunlu tutuyoruz.
-                    # Böylece kıyafet zinciri bozulmaz.
-
                     if (
                         index > 1
                         and (index - 1)
@@ -1085,10 +1195,7 @@ if st.session_state.sentences:
                             try:
 
 
-                                # --------------------------
                                 # PLAN
-                                # --------------------------
-
                                 if index in st.session_state.scene_plans:
 
                                     plan = (
@@ -1119,42 +1226,27 @@ if st.session_state.sentences:
                                     ] = plan
 
 
-                                # --------------------------
-                                # OUTFIT LOCK
-                                # --------------------------
-
-                                active_outfit = (
-                                    resolve_outfit(
-                                        scene_number=index,
-                                        plan=plan
-                                    )
+                                # OUTFIT
+                                active_outfit = resolve_outfit(
+                                    scene_number=index,
+                                    plan=plan
                                 )
 
 
-                                # --------------------------
                                 # PROMPT
-                                # --------------------------
-
-                                image_prompt = (
-                                    build_image_prompt(
-                                        channel_name=channel,
-                                        scene_number=index,
-                                        narration=sentence,
-                                        plan=plan,
-                                        active_outfit=active_outfit
-                                    )
+                                image_prompt = build_image_prompt(
+                                    channel_name=channel,
+                                    scene_number=index,
+                                    narration=sentence,
+                                    plan=plan,
+                                    active_outfit=active_outfit
                                 )
 
 
-                                # --------------------------
                                 # IMAGE
-                                # --------------------------
-
-                                generated_image = (
-                                    generate_scene_image(
-                                        image_prompt=image_prompt,
-                                        reference_image=reference_image
-                                    )
+                                generated_image = generate_scene_image(
+                                    image_prompt=image_prompt,
+                                    reference_image=reference_image
                                 )
 
 
@@ -1177,7 +1269,6 @@ if st.session_state.sentences:
 
 
                             except Exception as e:
-
 
                                 st.error(
                                     f"Sahne üretilemedi: {e}"
