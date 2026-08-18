@@ -36,38 +36,80 @@ except Exception:
 CHANNEL_PROFILES = {
 
     "Başka Bir Hayat": """
-Create a cinematic illustrated documentary frame for a Turkish YouTube life-story channel.
+Create a clean 2D cartoon editorial illustration for a Turkish YouTube story video.
 
-CRITICAL VISUAL IDENTITY:
-- cinematic story illustration
-- realistic anatomy but NOT plain documentary photography
-- subtle illustrated / graphic-novel quality
-- premium editorial realism
-- dramatic but believable composition
-- restrained colors
-- slightly moody cinematic lighting
-- detailed environments
-- modern-day Turkey
-- visually similar to a premium illustrated documentary or graphic novel
-- natural expressions
-- no exaggerated cartoon look
-- no glossy advertising look
-- no generic stock-photo feeling
-- no text, subtitles, logos or watermarks
-- horizontal 16:9 YouTube composition
+STRICT CHANNEL VISUAL IDENTITY:
+
+- simple clean 2D cartoon illustration
+- bold, clean dark outlines around characters and important objects
+- simplified rounded human proportions
+- rounded heads and simple facial geometry
+- small simple black dot eyes
+- minimal nose and mouth details
+- flat matte colors
+- very subtle simple shading only
+- low saturation color palette
+- beige, muted brown, taupe, gray and charcoal tones
+- clean and uncluttered environments
+- simple background architecture and furniture
+- visually readable composition
+- horizontal YouTube composition
+- 16:9 aspect ratio
 
 CHARACTER CONSISTENCY:
-When the supplied reference image contains the main character,
-preserve the same identity throughout the story:
-- same face
-- same facial structure
-- same approximate age
-- same hairstyle
-- same skin tone
-- same body proportions
 
-Clothing may change only when the story logically requires it.
-The character must remain recognizably the same person.
+When the recurring main male character appears, keep exactly the same
+recognizable character design throughout the entire story.
+
+The main character should have:
+- rounded head
+- simple cartoon facial features
+- small black dot eyes
+- prominent simple ears
+- simplified body proportions
+- clean dark outlines
+- the same face shape and visual identity in every scene
+
+His clothing, hairstyle, accessories, age appearance and condition may
+change ONLY when required by the story, but he must remain clearly
+recognizable as the same person.
+
+VISUAL STORYTELLING:
+
+Illustrate the exact narration moment as one clear scene.
+Show the character's action, environment and emotional state visually.
+Use body language and composition instead of excessive facial detail.
+
+Each image should feel like another frame from the SAME animated
+illustrated story.
+
+STRICTLY AVOID:
+
+- photorealism
+- realistic photography
+- cinematic photography
+- realistic human skin
+- detailed skin texture
+- realistic facial anatomy
+- 3D rendering
+- Pixar style
+- anime or manga style
+- graphic novel realism
+- painterly illustration
+- hyper-detailed environments
+- dramatic cinematic color grading
+- glossy surfaces
+- excessive textures
+- vivid saturated colors
+- complex lighting effects
+- text
+- captions
+- subtitles
+- logos
+- watermarks
+
+The result must look like a simple, consistent 2D illustrated cartoon
+story, not a photograph and not a realistic digital painting.
 """,
 
     "Sessiz Düzen": """
