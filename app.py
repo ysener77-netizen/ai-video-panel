@@ -42,7 +42,7 @@ CHANNEL_PROFILES = {
     "Başka Bir Hayat": """
 Create a clean 2D cartoon editorial illustration for a Turkish YouTube life-story video.
 
-STRICT CHANNEL VISUAL STYLE:
+STRICT CHANNEL STYLE:
 - simple clean 2D cartoon illustration
 - bold clean dark outlines
 - rounded simplified human proportions
@@ -55,32 +55,79 @@ STRICT CHANNEL VISUAL STYLE:
 - beige, muted brown, taupe, gray and charcoal palette
 - simple clean environments
 - uncluttered composition
-- clear storytelling
+- clear visual storytelling
 - horizontal 16:9 YouTube frame
 
-MAIN CHARACTER:
-If a reference image is supplied, the person in that image defines the
-recurring main male character.
+MAIN CHARACTER IDENTITY:
+The uploaded reference image defines ONLY the permanent identity and drawing design of the recurring main male character.
 
-Preserve:
-- same face shape
-- same eyes
-- same ears
-- same head proportions
-- same recognizable cartoon identity
-- same general body proportions
+PRESERVE FROM THE REFERENCE:
+- same recognizable face
+- same head shape
+- same facial proportions
+- same eye design
+- same ear design
+- same skin tone
+- same approximate age
+- same body proportions
+- same overall 2D cartoon design
+- same recognizable identity across every scene
 
-Clothing and accessories may change only when logically required by the story.
+DO NOT PERMANENTLY COPY FROM THE REFERENCE:
+- clothes
+- uniform
+- shirt
+- pants
+- jacket
+- shoes
+- hat or cap
+- backpack
+- work accessories
+- occupational appearance
+- pose
+- facial expression
+- background
 
-The result must look like another frame from the same simple illustrated cartoon series.
+The reference tells you WHO the character is.
+It does NOT tell you what job he has or what he must wear.
+
+WARDROBE AND ACCESSORIES:
+Choose clothing and accessories naturally from the CURRENT SCENE and STORY CONTEXT.
+
+Examples:
+- sleeping or waking up: simple pajamas or sleepwear, no hat
+- at home: casual home clothing
+- commuting to an office: normal everyday or office-appropriate clothing
+- office employee: shirt, polo, sweater or other believable office clothing, no delivery uniform
+- job interview: neat interview clothing
+- delivery worker: delivery work clothes only when the story says he is a delivery worker
+- construction worker: appropriate construction clothes only when required
+- unemployed at home: simple casual clothes
+- cold outdoor scene: jacket or coat when appropriate
+
+Never infer the character's profession from the reference image.
+
+CHARACTER EXPRESSION:
+The face identity must remain the same, but expressions should change naturally:
+- tired
+- worried
+- sad
+- surprised
+- relieved
+- happy
+- determined
+according to the narration.
+
+VISUAL CONTINUITY:
+Every frame must look like it belongs to the same animated illustrated series.
+Maintain the same line weight, palette, proportions and illustration style.
 
 STRICTLY AVOID:
 - photography
 - photorealism
-- realistic skin
-- realistic human anatomy
+- realistic skin texture
 - 3D rendering
-- Pixar
+- Pixar style
 - anime
 - manga
 - realistic graphic novel art
@@ -119,7 +166,7 @@ VISUAL STYLE:
 - no watermarks
 - horizontal 16:9
 
-If a reference image is supplied, preserve the same woman's identity.
+If a reference image is supplied, preserve the same woman's identity while allowing clothing and accessories to change naturally with the scene.
 """
 }
 
@@ -142,6 +189,28 @@ if "prompts" not in st.session_state:
 
 
 # -------------------------------------------------
+# SAHNE BAĞLAMI YARDIMCISI
+# -------------------------------------------------
+
+def build_scene_context(scene_text, previous_text="", next_text=""):
+
+    return f"""
+CURRENT NARRATION:
+{scene_text}
+
+PREVIOUS NARRATION:
+{previous_text if previous_text else "None"}
+
+NEXT NARRATION:
+{next_text if next_text else "None"}
+
+Interpret the character's clothing, accessories, environment and emotional state from these story details.
+
+Do not copy clothing or occupational cues from the reference image unless they are actually appropriate for this scene.
+"""
+
+
+# -------------------------------------------------
 # GÖRSEL ÜRETİM
 # -------------------------------------------------
 
@@ -149,38 +218,53 @@ def generate_scene(
     scene_text,
     channel_name,
     scene_number,
-    reference_image=None
+    reference_image=None,
+    previous_text="",
+    next_text=""
 ):
 
     if client is None:
         raise RuntimeError(
-            "Gemini API bağlantısı kurulamadı. "
-            "GEMINI_API_KEY değerini kontrol et."
+            "Gemini API bağlantısı kurulamadı. GEMINI_API_KEY değerini kontrol et."
         )
 
     profile = CHANNEL_PROFILES[channel_name]
+
+    scene_context = build_scene_context(
+        scene_text=scene_text,
+        previous_text=previous_text,
+        next_text=next_text
+    )
 
     prompt = f"""
 {profile}
 
 SCENE NUMBER: {scene_number:03}
 
-NARRATION:
-{scene_text}
+{scene_context}
 
-Create exactly ONE scene for this narration.
+CREATE EXACTLY ONE IMAGE.
 
-Important:
-- visually communicate this exact moment
-- do not write narration in the image
-- do not invent unrelated actions
-- maintain the same channel art style
-- keep composition suitable for gentle zoom/pan
+SCENE RULES:
+- illustrate the exact current narration moment
+- use previous and next narration only to understand continuity
+- do not combine multiple moments into one frame
+- wardrobe must fit the current scene
+- accessories must fit the current scene
+- do not preserve the reference image's uniform or hat unless appropriate
+- keep the recurring character's face and core identity unchanged
+- maintain the channel's exact 2D cartoon style
+- no text inside the image
+- no subtitles
+- no logos
+- no watermark
+- composition suitable for gentle zoom or pan
 - horizontal 16:9
 
-If a character reference image is included:
-Use it as the identity and style reference for the recurring main character.
-Do not replace the character with another person.
+REFERENCE IMAGE RULE:
+The supplied image is an IDENTITY + ART STYLE reference only.
+It is NOT a wardrobe reference.
+It is NOT an occupation reference.
 """
 
     contents = [prompt]
@@ -212,42 +296,33 @@ Do not replace the character with another person.
         )
     )
 
-    image_found = None
-
     if not response.candidates:
-        raise RuntimeError(
-            "Gemini hiçbir aday sonuç döndürmedi."
-        )
+        raise RuntimeError("Gemini hiçbir aday sonuç döndürmedi.")
+
+    image_found = None
 
     for part in response.candidates[0].content.parts:
 
         if part.inline_data is not None:
 
-            mime_type = (
-                part.inline_data.mime_type
-                or ""
-            )
+            mime_type = part.inline_data.mime_type or ""
 
             if mime_type.startswith("image/"):
 
                 image_found = Image.open(
-                    io.BytesIO(
-                        part.inline_data.data
-                    )
+                    io.BytesIO(part.inline_data.data)
                 ).convert("RGB")
 
                 break
 
     if image_found is None:
-        raise RuntimeError(
-            "Gemini görsel çıktısı döndürmedi."
-        )
+        raise RuntimeError("Gemini görsel çıktısı döndürmedi.")
 
     return image_found, prompt
 
 
 # -------------------------------------------------
-# KANAL SEÇİMİ
+# KANAL
 # -------------------------------------------------
 
 channel = st.selectbox(
@@ -281,7 +356,6 @@ if uploaded_reference is not None:
     col_a, col_b = st.columns([1, 3])
 
     with col_a:
-
         st.image(
             reference_image,
             caption="Referans karakter",
@@ -289,19 +363,16 @@ if uploaded_reference is not None:
         )
 
     with col_b:
-
         st.success(
-            "Referans yüklendi. "
-            "Sahnelerde karakter kimliğini korumak için kullanılacak."
+            "Referans yüklendi. Kimlik ve çizim stili korunacak; "
+            "kıyafet ve aksesuarlar sahneye göre değişecek."
         )
 
 else:
 
     if channel == "Başka Bir Hayat":
-
         st.warning(
-            "Başka Bir Hayat için referans karakter yüklemeden "
-            "seri üretime geçme."
+            "Başka Bir Hayat için referans karakter yüklemeden seri üretime geçme."
         )
 
 
@@ -319,7 +390,6 @@ script = st.text_area(
     height=300
 )
 
-
 if st.button(
     "Metni Cümlelere Ayır",
     type="primary"
@@ -327,9 +397,7 @@ if st.button(
 
     if not script.strip():
 
-        st.warning(
-            "Önce video metnini gir."
-        )
+        st.warning("Önce video metnini gir.")
 
     else:
 
@@ -360,8 +428,7 @@ if st.session_state.sentences:
 
     approved_count = sum(
         1
-        for value
-        in st.session_state.approved.values()
+        for value in st.session_state.approved.values()
         if value
     )
 
@@ -374,8 +441,7 @@ if st.session_state.sentences:
     )
 
     st.caption(
-        f"Onaylanan: "
-        f"{approved_count}/{len(sentences)}"
+        f"Onaylanan: {approved_count}/{len(sentences)}"
     )
 
     st.subheader("2. İlk 20 Sahne")
@@ -385,6 +451,18 @@ if st.session_state.sentences:
         start=1
     ):
 
+        previous_text = (
+            sentences[index - 2]
+            if index > 1
+            else ""
+        )
+
+        next_text = (
+            sentences[index]
+            if index < len(sentences)
+            else ""
+        )
+
         with st.container(border=True):
 
             approved = st.session_state.approved.get(
@@ -393,8 +471,7 @@ if st.session_state.sentences:
             )
 
             st.markdown(
-                f"### {'✅' if approved else '⏳'} "
-                f"Sahne {index:03}"
+                f"### {'✅' if approved else '⏳'} Sahne {index:03}"
             )
 
             st.write(sentence)
@@ -432,7 +509,9 @@ if st.session_state.sentences:
                                 scene_text=sentence,
                                 channel_name=channel,
                                 scene_number=index,
-                                reference_image=reference_image
+                                reference_image=reference_image,
+                                previous_text=previous_text,
+                                next_text=next_text
                             )
 
                             st.session_state.images[index] = image
@@ -463,20 +542,17 @@ if st.session_state.sentences:
 
             if index in st.session_state.prompts:
 
-                with st.expander(
-                    "✏️ Kullanılan Prompt"
-                ):
+                with st.expander("✏️ Kullanılan Prompt"):
 
                     st.text_area(
                         "Prompt",
                         st.session_state.prompts[index],
-                        height=240,
+                        height=260,
                         key=f"prompt_{index}"
                     )
 
     if len(sentences) > 20:
 
         st.info(
-            f"İlk 20 sahne gösteriliyor. "
-            f"Toplam {len(sentences)} sahne var."
+            f"İlk 20 sahne gösteriliyor. Toplam {len(sentences)} sahne var."
         )
