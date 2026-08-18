@@ -9,7 +9,7 @@ from PIL import Image
 
 
 # =========================================================
-# SAYFA AYARLARI
+# SAYFA
 # =========================================================
 
 st.set_page_config(
@@ -23,7 +23,7 @@ st.caption("Kontrollü AI video üretim paneli")
 
 
 # =========================================================
-# GEMINI CLIENT
+# GEMINI
 # =========================================================
 
 try:
@@ -34,22 +34,18 @@ except Exception:
     client = None
 
 
-# =========================================================
-# KULLANILAN MODELLER
-# =========================================================
-
 SCENE_DIRECTOR_MODEL = "gemini-3.1-flash-lite"
 IMAGE_MODEL = "gemini-3.1-flash-lite-image"
 
 
 # =========================================================
-# SCENE DIRECTOR ÇIKTI ŞEMASI
+# SCENE DIRECTOR ŞEMASI
 # =========================================================
 
 class ScenePlan(BaseModel):
 
     location: str = Field(
-        description="Sahnenin tek ve net mekanı."
+        description="Tek ve net sahne mekanı."
     )
 
     time_of_day: str = Field(
@@ -57,23 +53,42 @@ class ScenePlan(BaseModel):
     )
 
     main_action: str = Field(
-        description="Ana karakterin bu karede yaptığı tek ana eylem."
+        description="Karakterin karede yaptığı tek ana eylem."
     )
 
-    wardrobe: str = Field(
-        description="Hikayenin mevcut durumuna uygun kıyafet."
+    wardrobe_change_required: bool = Field(
+        description=(
+            "Önceki sahnedeki kıyafetin gerçekten değiştirilmesi "
+            "gerekiyorsa true. Aksi halde false."
+        )
+    )
+
+    wardrobe_change_reason: str = Field(
+        description=(
+            "Kıyafet neden değişmeli veya neden aynı kalmalı."
+        )
+    )
+
+    proposed_new_outfit: str = Field(
+        description=(
+            "Yalnızca wardrobe_change_required true ise yeni kıyafetin "
+            "çok kesin tanımı. Renk, üst, alt, ayakkabı dahil. "
+            "Değişiklik gerekmiyorsa SAME."
+        )
     )
 
     accessories: str = Field(
-        description="Yalnızca bu sahnede gerçekten gerekli aksesuarlar. Yoksa none."
+        description=(
+            "Sadece gerçekten gerekli aksesuarlar. Gerekmiyorsa none."
+        )
     )
 
     emotion: str = Field(
-        description="Karakterin doğal yüz ifadesi ve duygusu."
+        description="Doğal duygu ve yüz ifadesi."
     )
 
     pose: str = Field(
-        description="Karakterin beden duruşu."
+        description="Beden duruşu."
     )
 
     camera: str = Field(
@@ -85,20 +100,20 @@ class ScenePlan(BaseModel):
     )
 
     continuity: str = Field(
-        description="Önceki ve sonraki sahnelerle korunacak görsel süreklilik."
+        description="Önceki sahneyle korunması gereken durum."
     )
 
     must_include: list[str] = Field(
-        description="Görselde mutlaka bulunması gereken öğeler."
+        description="Mutlaka görünmesi gereken öğeler."
     )
 
     must_not_include: list[str] = Field(
-        description="Görselde kesinlikle bulunmaması gereken öğeler."
+        description="Kesinlikle görünmemesi gereken öğeler."
     )
 
 
 # =========================================================
-# KANAL GÖRSEL KİMLİĞİ
+# KANAL PROFİLLERİ
 # =========================================================
 
 CHANNEL_PROFILES = {
@@ -108,116 +123,94 @@ STYLE LOCK — BAŞKA BİR HAYAT
 
 Create a clean simple 2D cartoon editorial illustration.
 
-PERMANENT CHANNEL VISUAL STYLE:
+PERMANENT VISUAL STYLE:
 
 - clean 2D cartoon illustration
 - bold clean dark outlines
 - rounded simplified human anatomy
-- rounded heads
-- small simple black dot eyes
-- minimal nose and mouth
+- rounded head construction
+- simple black dot eyes
+- minimal facial details
 - flat matte colors
-- very subtle simple shading
-- muted low-saturation palette
+- subtle simple shading only
+- low saturation
 - beige
-- taupe
 - muted brown
+- taupe
 - gray
 - charcoal
-- simple clean environments
+- clean environments
 - uncluttered composition
-- clear visual storytelling
 - consistent line thickness
 - consistent character proportions
-- horizontal 16:9 YouTube composition
+- horizontal 16:9
 
 
-MAIN CHARACTER IDENTITY LOCK:
+CHARACTER IDENTITY LOCK:
 
-The uploaded reference image defines WHO the recurring main character is.
+The uploaded reference image defines the recurring protagonist's
+PERMANENT PHYSICAL AND DRAWING IDENTITY.
 
-PRESERVE:
+ALWAYS PRESERVE:
 
-- same recognizable face identity
-- same head shape
-- same facial proportions
-- same eye design
-- same ear design
-- same skin tone
-- same approximate age
-- same body proportions
-- same simplified cartoon construction
-- same overall character identity
+- recognizable face
+- head shape
+- facial proportions
+- eye style
+- ear design
+- skin tone
+- approximate age
+- body proportions
+- overall simplified 2D cartoon construction
 
 
-IMPORTANT:
+REFERENCE IMAGE DOES NOT DEFINE:
 
-The reference image is NOT a wardrobe reference.
-
-The reference image is NOT an occupation reference.
-
-DO NOT permanently copy:
-
-- hat
-- cap
-- uniform
-- shirt
-- pants
-- shoes
-- backpack
-- bag
-- occupational equipment
-- pose
-- facial expression
-- background
+- current clothing
 - profession
+- hat
+- uniform
+- backpack
+- accessories
+- pose
+- emotion
+- location
 
 
-Wardrobe must be selected from the CURRENT STORY SCENE.
+WARDROBE CONTINUITY IS CRITICAL:
 
-Examples:
+When an ACTIVE OUTFIT LOCK is supplied in the prompt,
+reproduce that outfit exactly.
 
-Sleeping:
-sleepwear or pajamas.
+Preserve:
+- exact garment type
+- exact garment colors
+- exact pants color
+- exact shoe color
+- jacket / hoodie / shirt status
+- visible layers
 
-At home:
-casual home clothing.
+Do NOT redesign the outfit.
+Do NOT substitute colors.
+Do NOT randomly change clothing between consecutive scenes.
 
-Going to a normal office job:
-ordinary clean workday clothing.
+Only use a different outfit when the prompt explicitly provides
+a NEW ACTIVE OUTFIT LOCK.
 
-Office:
-shirt, polo, sweater or other believable office clothing.
-
-Job interview:
-neat interview clothing.
-
-Delivery worker:
-delivery uniform ONLY if narration says he works as a delivery worker.
-
-Construction:
-construction clothing ONLY when narration requires it.
-
-
-VISUAL CONTINUITY:
-
-Every frame must feel like another shot from the same illustrated series.
 
 STRICTLY AVOID:
 
 - photography
 - photorealism
 - realistic skin texture
-- realistic photography lighting
 - 3D rendering
 - Pixar
 - anime
 - manga
-- realistic graphic novel art
-- painterly art
+- realistic graphic novel
+- painterly rendering
 - glossy advertising look
 - vivid saturated colors
-- excessive textures
 - text
 - subtitles
 - captions
@@ -231,28 +224,24 @@ STYLE LOCK — SESSİZ DÜZEN
 Create a premium calm 2D Japanese editorial illustration.
 
 - mature Japanese woman approximately 35-40 when required
-- elegant 2D editorial illustration
 - warm beige
 - soft ivory
-- natural pale oak
+- pale natural oak
 - muted sage green
 - low saturation
-- gentle natural morning light
+- elegant 2D editorial illustration
+- gentle natural light
 - minimalist Japanese interiors
-- calm composition
-- one clear scene
-- no irrelevant decorative objects
-- no vivid colors
-- no orange or strong yellow cast
+- simple composition
 - horizontal 16:9
+- no vivid colors
+- no orange cast
 - no text
 - no captions
 - no logos
 - no watermarks
 
-If a reference image is supplied:
-preserve identity while allowing clothing, expression and accessories
-to change naturally according to the current narration.
+Preserve reference identity consistently.
 """
 }
 
@@ -267,11 +256,29 @@ DEFAULTS = {
     "approved": {},
     "prompts": {},
     "scene_plans": {},
+    "outfit_by_scene": {},
 }
 
-for key, default_value in DEFAULTS.items():
+for key, value in DEFAULTS.items():
     if key not in st.session_state:
-        st.session_state[key] = default_value
+        st.session_state[key] = value
+
+
+# =========================================================
+# YARDIMCI
+# =========================================================
+
+def get_previous_outfit(scene_number):
+
+    if scene_number <= 1:
+        return ""
+
+    previous_scene = scene_number - 1
+
+    return st.session_state.outfit_by_scene.get(
+        previous_scene,
+        ""
+    )
 
 
 # =========================================================
@@ -281,7 +288,8 @@ for key, default_value in DEFAULTS.items():
 def create_scene_plan(
     current_text,
     previous_text="",
-    next_text=""
+    next_text="",
+    previous_outfit=""
 ):
 
     if client is None:
@@ -289,144 +297,136 @@ def create_scene_plan(
             "Gemini API bağlantısı kurulamadı."
         )
 
+    current_outfit_text = (
+        previous_outfit
+        if previous_outfit
+        else "NO PREVIOUS OUTFIT — establish an appropriate first outfit."
+    )
+
     director_prompt = f"""
-You are the Scene Director for a narrated 2D YouTube life-story video.
+You are the Scene Director for a consistent illustrated YouTube story.
 
-You are NOT generating the image.
+Your task is to understand ONE narration sentence and create
+a precise visual plan.
 
-Your job is to transform the CURRENT narration sentence into a precise,
-literal and visually unambiguous ONE-FRAME scene plan.
-
-
-PREVIOUS SENTENCE:
+PREVIOUS NARRATION:
 {previous_text if previous_text else "None"}
 
-
-CURRENT SENTENCE:
+CURRENT NARRATION:
 {current_text}
 
-
-NEXT SENTENCE:
+NEXT NARRATION:
 {next_text if next_text else "None"}
 
 
-CRITICAL RULES:
-
-1. Illustrate ONLY the CURRENT sentence.
-
-2. Previous and next sentences exist only to understand context and continuity.
-
-3. Do not invent a new event.
-
-4. Do not exaggerate an ordinary event.
-
-5. Never interpret "leaving home" as:
-- going on vacation
-- traveling
-- moving house
-- going to airport
-- carrying luggage
-
-unless the narration explicitly says so.
-
-6. Never add:
-- suitcase
-- rolling luggage
-- travel bag
-- boxes
-- package
-- delivery equipment
-- helmet
-- uniform
-- hat
-- work tools
-
-unless the current story context requires them.
-
-7. Clothing must fit the character's current situation.
-
-8. Never infer the character's occupation from the reference image.
-
-9. Preserve story continuity.
+CURRENT LOCKED OUTFIT:
+{current_outfit_text}
 
 
-IMPORTANT INTERPRETATION EXAMPLES:
+WARDROBE CONTINUITY IS EXTREMELY IMPORTANT.
+
+DEFAULT RULE:
+KEEP THE CURRENT LOCKED OUTFIT EXACTLY THE SAME.
+
+Do NOT change:
+- shirt color
+- hoodie color
+- jacket color
+- pants color
+- shoes
+- visible clothing layers
+
+simply because the character enters another location.
 
 
-CURRENT:
+ONLY change outfit if the story context clearly requires a genuine
+wardrobe transition.
+
+
+VALID OUTFIT CHANGE EXAMPLES:
+
+- waking up in sleepwear then getting dressed for work
+- explicitly changing clothes
+- showering and dressing
+- starting a job requiring a uniform
+- preparing for a formal interview
+- changing into pajamas before sleeping
+- changing into sports clothes for exercise
+
+
+NOT VALID REASONS TO CHANGE OUTFIT:
+
+- entering a bus
+- entering an office
+- sitting at a desk
+- talking to the boss
+- walking outside
+- eating lunch
+- going home
+- changing camera angle
+- changing emotion
+
+
+If wardrobe_change_required is FALSE:
+
+proposed_new_outfit MUST be exactly:
+SAME
+
+
+If wardrobe_change_required is TRUE:
+
+create ONE precise canonical outfit description.
+
+Example:
+
+dark charcoal zip hoodie,
+muted beige crew-neck T-shirt,
+dark gray straight trousers,
+dark brown casual shoes,
+no hat
+
+This description will become permanently locked for following scenes,
+so choose sensible specific colors and garments.
+
+
+SEMANTIC RULES:
+
+1. Illustrate the CURRENT sentence literally.
+
+2. Previous and next sentences are context only.
+
+3. Do not invent unrelated events.
+
+4. Do not interpret leaving home as travel or vacation.
+
+5. Do not add luggage unless explicitly necessary.
+
+6. Never infer occupation from the character reference image.
+
+7. Accessories should be minimal and logically required.
+
+
+EXAMPLE:
+
+Previous:
 "Sabah alarm çaldığında yataktan kalkıyorsun."
 
-PLAN:
-Bedroom.
-Character has just woken up.
-Sleepwear.
-Tired expression.
-Alarm clock visible.
+Current locked outfit:
+muted taupe striped pajamas
 
-MUST NOT INCLUDE:
-work uniform
-hat
-backpack
-luggage
-
-
-CURRENT:
+Current:
 "Hızlıca hazırlanıp evden çıkıyorsun."
 
-PLAN:
-Normal residential home entrance.
-Character is leaving home to go to work.
-Ordinary workday clothing.
-Walking through or just outside front door.
+This IS a legitimate wardrobe change because the person changes
+from sleepwear into workday clothing.
 
-Possible:
-small normal everyday backpack.
-
-MUST NOT INCLUDE:
-suitcase
-rolling luggage
-travel bag
-airport context
-moving boxes
-delivery uniform
+Choose ONE precise workday outfit and lock it.
 
 
-CURRENT:
+Next:
 "Kalabalık bir otobüste işe doğru yolculuk ediyorsun."
 
-PLAN:
-Crowded urban public bus.
-Character commuting to work.
-Same workday clothing as previous scene.
-Standing or sitting among commuters.
-
-MUST NOT INCLUDE:
-tour bus
-airport shuttle
-vacation luggage
-delivery uniform
-
-
-CURRENT:
-"Masana geçip bilgisayarını açıyorsun."
-
-PLAN:
-Ordinary office desk.
-Character is an office employee in this scene.
-Office-appropriate clothing.
-Character opening or using desktop/laptop computer.
-
-MUST NOT INCLUDE:
-delivery uniform
-delivery cap
-parcel
-warehouse
-factory
-
-
-Be conservative.
-Be literal.
-Do not add objects that are not needed.
+The outfit MUST NOT change again.
 """
 
     response = client.models.generate_content(
@@ -440,7 +440,7 @@ Do not add objects that are not needed.
 
     if not response.text:
         raise RuntimeError(
-            "Scene Director sahne planı döndürmedi."
+            "Scene Director sonuç döndürmedi."
         )
 
     plan = ScenePlan.model_validate_json(
@@ -451,25 +451,77 @@ Do not add objects that are not needed.
 
 
 # =========================================================
-# GÖRSEL PROMPTU
+# OUTFIT LOCK KARARI
+# =========================================================
+
+def resolve_outfit(
+    scene_number,
+    plan
+):
+
+    previous_outfit = get_previous_outfit(
+        scene_number
+    )
+
+    # İlk sahne
+    if not previous_outfit:
+
+        if (
+            plan.proposed_new_outfit
+            and plan.proposed_new_outfit.upper() != "SAME"
+        ):
+            active_outfit = plan.proposed_new_outfit
+
+        else:
+            active_outfit = (
+                "simple muted taupe casual clothing, "
+                "dark gray trousers, brown casual shoes, no hat"
+            )
+
+    # Gerçek kıyafet değişimi
+    elif (
+        plan.wardrobe_change_required
+        and plan.proposed_new_outfit.upper() != "SAME"
+    ):
+
+        active_outfit = plan.proposed_new_outfit
+
+    # Aynı kıyafet KELİMESİ KELİMESİNE devam
+    else:
+
+        active_outfit = previous_outfit
+
+
+    st.session_state.outfit_by_scene[
+        scene_number
+    ] = active_outfit
+
+    return active_outfit
+
+
+# =========================================================
+# GÖRSEL PROMPT
 # =========================================================
 
 def build_image_prompt(
     channel_name,
     scene_number,
     narration,
-    plan
+    plan,
+    active_outfit
 ):
 
-    style = CHANNEL_PROFILES[channel_name]
+    style = CHANNEL_PROFILES[
+        channel_name
+    ]
 
-    must_include = (
+    include_text = (
         ", ".join(plan.must_include)
         if plan.must_include
         else "None"
     )
 
-    must_not_include = (
+    forbidden_text = (
         ", ".join(plan.must_not_include)
         if plan.must_not_include
         else "None"
@@ -479,35 +531,27 @@ def build_image_prompt(
 {style}
 
 
-SCENE NUMBER:
+SCENE:
 {scene_number:03}
 
 
-ORIGINAL NARRATION:
+NARRATION:
 "{narration}"
 
 
-SCENE DIRECTOR PLAN:
+SCENE PLAN:
 
 
 LOCATION:
 {plan.location}
 
 
-TIME OF DAY:
+TIME:
 {plan.time_of_day}
 
 
-MAIN ACTION:
+ACTION:
 {plan.main_action}
-
-
-WARDROBE:
-{plan.wardrobe}
-
-
-ACCESSORIES:
-{plan.accessories}
 
 
 EMOTION:
@@ -526,80 +570,79 @@ BACKGROUND:
 {plan.background}
 
 
+ACCESSORIES:
+{plan.accessories}
+
+
 CONTINUITY:
 {plan.continuity}
 
 
+========================================
+
+ACTIVE OUTFIT LOCK
+
+{active_outfit}
+
+========================================
+
+
+OUTFIT LOCK IS MANDATORY.
+
+The protagonist must wear EXACTLY this outfit.
+
+Do not:
+- change garment colors
+- replace a hoodie with a jacket
+- replace a shirt with another shirt
+- change pants color
+- change shoe color
+- add a hat
+- remove a visible layer
+
+unless the ACTIVE OUTFIT LOCK explicitly says so.
+
+
+REFERENCE IMAGE:
+
+The reference image defines CHARACTER IDENTITY.
+
+The ACTIVE OUTFIT LOCK defines CLOTHING.
+
+Do not confuse these two.
+
+
 MUST INCLUDE:
-{must_include}
+{include_text}
 
 
-STRICTLY MUST NOT INCLUDE:
-{must_not_include}
+MUST NOT INCLUDE:
+{forbidden_text}
 
 
 FINAL RULES:
 
-Create exactly ONE still image.
-
-Follow the Scene Director plan literally.
-
-Do not reinterpret the narration.
-
-Do not invent a second event.
-
-Do not add objects because they exist in the reference character image.
-
-The reference image defines:
-
-CHARACTER IDENTITY
-+
-GENERAL CARTOON DRAWING LANGUAGE
-
-ONLY.
-
-It does NOT define:
-
-WARDROBE
-PROFESSION
-ACCESSORIES
-POSE
-LOCATION
-
-
-Wardrobe must follow SCENE DIRECTOR.
-
-Accessories must follow SCENE DIRECTOR.
-
-If an object is listed under MUST NOT INCLUDE,
-it must not appear anywhere in the image.
-
-Keep the protagonist recognizable as the same recurring cartoon character.
-
-Facial expression may change.
-
-Clothing may change.
-
-Accessories may change.
-
-Character identity must not change.
-
-Keep composition suitable for gentle zoom or pan.
-
-Horizontal 16:9.
-
-No text.
-No caption.
-No subtitle.
-No logo.
-No watermark.
+- exactly one still scene
+- exact narration moment
+- no unrelated events
+- no invented props
+- same recurring protagonist
+- same character construction
+- exact ACTIVE OUTFIT LOCK
+- simple 2D cartoon style
+- suitable for subtle zoom/pan
+- horizontal 16:9
+- no text
+- no subtitles
+- no logos
+- no watermarks
 """
 
     return prompt
 
 
 # =========================================================
-# REFERANS GÖRSELİ BYTE'A ÇEVİR
+# REFERANS GÖRSEL PART
 # =========================================================
 
 def image_to_part(image):
@@ -644,33 +687,36 @@ def generate_scene_image(
             )
         )
 
+
     response = client.models.generate_content(
         model=IMAGE_MODEL,
         contents=contents,
         config=types.GenerateContentConfig(
-            response_modalities=["IMAGE"],
+            response_modalities=[
+                "IMAGE"
+            ],
             image_config=types.ImageConfig(
                 aspect_ratio="16:9"
             )
         )
     )
 
+
     if not response.candidates:
         raise RuntimeError(
-            "Gemini hiçbir aday görsel döndürmedi."
+            "Gemini görsel döndürmedi."
         )
 
-    generated_image = None
 
     for candidate in response.candidates:
 
         if candidate.content is None:
             continue
 
-        if not candidate.content.parts:
-            continue
-
-        for part in candidate.content.parts:
+        for part in (
+            candidate.content.parts
+            or []
+        ):
 
             if part.inline_data is None:
                 continue
@@ -680,32 +726,24 @@ def generate_scene_image(
                 or ""
             )
 
-            if not mime_type.startswith(
+            if mime_type.startswith(
                 "image/"
             ):
-                continue
 
-            generated_image = Image.open(
-                io.BytesIO(
-                    part.inline_data.data
-                )
-            ).convert("RGB")
+                return Image.open(
+                    io.BytesIO(
+                        part.inline_data.data
+                    )
+                ).convert("RGB")
 
-            break
 
-        if generated_image is not None:
-            break
-
-    if generated_image is None:
-        raise RuntimeError(
-            "Gemini yanıtında kullanılabilir görsel bulunamadı."
-        )
-
-    return generated_image
+    raise RuntimeError(
+        "Görsel bulunamadı."
+    )
 
 
 # =========================================================
-# KANAL SEÇİMİ
+# KANAL
 # =========================================================
 
 channel = st.selectbox(
@@ -718,7 +756,7 @@ channel = st.selectbox(
 
 
 # =========================================================
-# KARAKTER REFERANSI
+# REFERANS
 # =========================================================
 
 st.subheader(
@@ -743,14 +781,16 @@ if uploaded_reference is not None:
         uploaded_reference
     ).convert("RGB")
 
-    col_ref1, col_ref2 = st.columns(
+
+    col_a, col_b = st.columns(
         [
             1,
             3
         ]
     )
 
-    with col_ref1:
+
+    with col_a:
 
         st.image(
             reference_image,
@@ -758,21 +798,19 @@ if uploaded_reference is not None:
             use_container_width=True
         )
 
-    with col_ref2:
+
+    with col_b:
 
         st.success(
-            "Referans yüklendi. "
-            "Karakter kimliği korunacak; "
-            "kıyafet, aksesuar, meslek görünümü ve ifade "
-            "sahneye göre değişecek."
+            "Karakter kimliği referanstan korunacak. "
+            "Kıyafet ise hikâyedeki wardrobe lock sistemiyle yönetilecek."
         )
 
 
 elif channel == "Başka Bir Hayat":
 
     st.warning(
-        "Başka Bir Hayat için referans karakter yüklemeden "
-        "seri üretime geçme."
+        "Referans karakter yüklemeden seri üretime geçme."
     )
 
 
@@ -780,7 +818,7 @@ st.divider()
 
 
 # =========================================================
-# VIDEO METNİ
+# METİN
 # =========================================================
 
 st.subheader(
@@ -812,20 +850,18 @@ if st.button(
         )
 
         sentences = [
-            sentence.strip()
-            for sentence in sentences
-            if sentence.strip()
+            s.strip()
+            for s in sentences
+            if s.strip()
         ]
 
+
         st.session_state.sentences = sentences
-
         st.session_state.images = {}
-
         st.session_state.approved = {}
-
         st.session_state.prompts = {}
-
         st.session_state.scene_plans = {}
+        st.session_state.outfit_by_scene = {}
 
 
 # =========================================================
@@ -838,26 +874,31 @@ if st.session_state.sentences:
         st.session_state.sentences
     )
 
+
     approved_count = sum(
         1
-        for value
-        in st.session_state.approved.values()
+        for value in
+        st.session_state.approved.values()
         if value
     )
+
 
     st.success(
         f"{len(sentences)} sahne bulundu."
     )
+
 
     st.progress(
         approved_count
         / len(sentences)
     )
 
+
     st.caption(
         f"Onaylanan: "
         f"{approved_count}/{len(sentences)}"
     )
+
 
     st.subheader(
         "2. İlk 20 Sahne"
@@ -869,17 +910,20 @@ if st.session_state.sentences:
         start=1
     ):
 
+
         previous_text = (
             sentences[index - 2]
             if index > 1
             else ""
         )
 
+
         next_text = (
             sentences[index]
             if index < len(sentences)
             else ""
         )
+
 
         approved = (
             st.session_state.approved.get(
@@ -893,119 +937,104 @@ if st.session_state.sentences:
             border=True
         ):
 
+
             st.markdown(
                 f"### "
                 f"{'✅' if approved else '⏳'} "
                 f"Sahne {index:03}"
             )
 
+
             st.write(
                 sentence
             )
 
 
-            # -----------------------------------------
-            # SCENE DIRECTOR PLANI
-            # -----------------------------------------
+            # ---------------------------------
+            # OUTFIT GÖSTER
+            # ---------------------------------
+
+            if index in st.session_state.outfit_by_scene:
+
+                st.info(
+                    "👕 Aktif Kıyafet Kilidi: "
+                    + st.session_state.outfit_by_scene[
+                        index
+                    ]
+                )
+
+
+            # ---------------------------------
+            # SCENE PLAN
+            # ---------------------------------
 
             if index in st.session_state.scene_plans:
 
                 plan = (
-                    st.session_state.scene_plans[index]
+                    st.session_state.scene_plans[
+                        index
+                    ]
                 )
+
 
                 with st.expander(
                     "🎬 Scene Director Planı"
                 ):
+
 
                     st.write(
                         f"**Mekân:** "
                         f"{plan.location}"
                     )
 
-                    st.write(
-                        f"**Zaman:** "
-                        f"{plan.time_of_day}"
-                    )
 
                     st.write(
-                        f"**Ana eylem:** "
+                        f"**Eylem:** "
                         f"{plan.main_action}"
                     )
 
-                    st.write(
-                        f"**Kıyafet:** "
-                        f"{plan.wardrobe}"
-                    )
 
                     st.write(
-                        f"**Aksesuar:** "
-                        f"{plan.accessories}"
+                        f"**Kıyafet değişmeli mi:** "
+                        f"{plan.wardrobe_change_required}"
                     )
+
+
+                    st.write(
+                        f"**Sebep:** "
+                        f"{plan.wardrobe_change_reason}"
+                    )
+
+
+                    st.write(
+                        f"**Yeni kıyafet önerisi:** "
+                        f"{plan.proposed_new_outfit}"
+                    )
+
 
                     st.write(
                         f"**Duygu:** "
                         f"{plan.emotion}"
                     )
 
-                    st.write(
-                        f"**Poz:** "
-                        f"{plan.pose}"
-                    )
 
-                    st.write(
-                        f"**Kamera:** "
-                        f"{plan.camera}"
-                    )
-
-                    st.write(
-                        f"**Arka plan:** "
-                        f"{plan.background}"
-                    )
-
-                    st.write(
-                        f"**Süreklilik:** "
-                        f"{plan.continuity}"
-                    )
-
-                    st.write(
-                        "**Mutlaka olsun:** "
-                        + (
-                            ", ".join(
-                                plan.must_include
-                            )
-                            if plan.must_include
-                            else "Yok"
-                        )
-                    )
-
-                    st.write(
-                        "**Kesinlikle olmasın:** "
-                        + (
-                            ", ".join(
-                                plan.must_not_include
-                            )
-                            if plan.must_not_include
-                            else "Yok"
-                        )
-                    )
-
-
-            # -----------------------------------------
-            # ÜRETİLMİŞ GÖRSEL
-            # -----------------------------------------
+            # ---------------------------------
+            # GÖRSEL
+            # ---------------------------------
 
             if index in st.session_state.images:
 
                 st.image(
-                    st.session_state.images[index],
+                    st.session_state.images[
+                        index
+                    ],
                     use_container_width=True
                 )
 
 
-            # -----------------------------------------
+            # ---------------------------------
             # BUTONLAR
-            # -----------------------------------------
+            # ---------------------------------
 
             col1, col2 = st.columns(
                 2
@@ -1014,101 +1043,152 @@ if st.session_state.sentences:
 
             with col1:
 
-                button_label = (
+
+                label = (
                     "🔄 Aynı Planla Yeniden Üret"
-                    if index in st.session_state.images
-                    else "🎨 Görsel Üret"
+                    if index in
+                    st.session_state.images
+                    else
+                    "🎨 Görsel Üret"
                 )
 
 
                 if st.button(
-                    button_label,
+                    label,
                     key=f"generate_{index}",
                     use_container_width=True
                 ):
 
-                    with st.spinner(
-                        f"Sahne {index:03} "
-                        f"yorumlanıyor ve hazırlanıyor..."
+
+                    # Sahne sırasını zorunlu tutuyoruz.
+                    # Böylece kıyafet zinciri bozulmaz.
+
+                    if (
+                        index > 1
+                        and (index - 1)
+                        not in
+                        st.session_state.outfit_by_scene
                     ):
 
-                        try:
+                        st.error(
+                            "Tutarlılık için önce bir önceki sahneyi üret."
+                        )
 
-                            # ---------------------------------
-                            # SAHNE PLANI
-                            # ---------------------------------
+                    else:
 
-                            if index in st.session_state.scene_plans:
 
-                                plan = (
+                        with st.spinner(
+                            f"Sahne {index:03} hazırlanıyor..."
+                        ):
+
+
+                            try:
+
+
+                                # --------------------------
+                                # PLAN
+                                # --------------------------
+
+                                if index in st.session_state.scene_plans:
+
+                                    plan = (
+                                        st.session_state.scene_plans[
+                                            index
+                                        ]
+                                    )
+
+                                else:
+
+                                    previous_outfit = (
+                                        get_previous_outfit(
+                                            index
+                                        )
+                                    )
+
+
+                                    plan = create_scene_plan(
+                                        current_text=sentence,
+                                        previous_text=previous_text,
+                                        next_text=next_text,
+                                        previous_outfit=previous_outfit
+                                    )
+
+
                                     st.session_state.scene_plans[
                                         index
-                                    ]
+                                    ] = plan
+
+
+                                # --------------------------
+                                # OUTFIT LOCK
+                                # --------------------------
+
+                                active_outfit = (
+                                    resolve_outfit(
+                                        scene_number=index,
+                                        plan=plan
+                                    )
                                 )
 
-                            else:
 
-                                plan = create_scene_plan(
-                                    current_text=sentence,
-                                    previous_text=previous_text,
-                                    next_text=next_text
+                                # --------------------------
+                                # PROMPT
+                                # --------------------------
+
+                                image_prompt = (
+                                    build_image_prompt(
+                                        channel_name=channel,
+                                        scene_number=index,
+                                        narration=sentence,
+                                        plan=plan,
+                                        active_outfit=active_outfit
+                                    )
                                 )
 
-                                st.session_state.scene_plans[
+
+                                # --------------------------
+                                # IMAGE
+                                # --------------------------
+
+                                generated_image = (
+                                    generate_scene_image(
+                                        image_prompt=image_prompt,
+                                        reference_image=reference_image
+                                    )
+                                )
+
+
+                                st.session_state.images[
                                     index
-                                ] = plan
+                                ] = generated_image
 
 
-                            # ---------------------------------
-                            # GÖRSEL PROMPT
-                            # ---------------------------------
-
-                            image_prompt = build_image_prompt(
-                                channel_name=channel,
-                                scene_number=index,
-                                narration=sentence,
-                                plan=plan
-                            )
+                                st.session_state.prompts[
+                                    index
+                                ] = image_prompt
 
 
-                            # ---------------------------------
-                            # GÖRSEL
-                            # ---------------------------------
-
-                            generated_image = generate_scene_image(
-                                image_prompt=image_prompt,
-                                reference_image=reference_image
-                            )
+                                st.session_state.approved[
+                                    index
+                                ] = False
 
 
-                            st.session_state.images[
-                                index
-                            ] = generated_image
+                                st.rerun()
 
 
-                            st.session_state.prompts[
-                                index
-                            ] = image_prompt
+                            except Exception as e:
 
 
-                            st.session_state.approved[
-                                index
-                            ] = False
-
-
-                            st.rerun()
-
-
-                        except Exception as e:
-
-                            st.error(
-                                f"Sahne üretilemedi: {e}"
-                            )
+                                st.error(
+                                    f"Sahne üretilemedi: {e}"
+                                )
 
 
             with col2:
 
+
                 if index in st.session_state.images:
+
 
                     if st.button(
                         "✅ Onayla",
@@ -1117,22 +1197,26 @@ if st.session_state.sentences:
                         disabled=approved
                     ):
 
+
                         st.session_state.approved[
                             index
                         ] = True
 
+
                         st.rerun()
 
 
-            # -----------------------------------------
+            # ---------------------------------
             # PROMPT
-            # -----------------------------------------
+            # ---------------------------------
 
             if index in st.session_state.prompts:
+
 
                 with st.expander(
                     "✏️ Görsel Promptu"
                 ):
+
 
                     st.text_area(
                         "Prompt",
