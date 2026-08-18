@@ -1,11 +1,15 @@
 import streamlit as st
 import re
-import base64
 import io
 
 from google import genai
+from google.genai import types
 from PIL import Image
 
+
+# -------------------------------------------------
+# SAYFA
+# -------------------------------------------------
 
 st.set_page_config(
     page_title="AI Video Studio",
@@ -18,7 +22,7 @@ st.caption("Kontrollü AI video üretim paneli")
 
 
 # -------------------------------------------------
-# GEMINI
+# GEMINI CLIENT
 # -------------------------------------------------
 
 try:
@@ -36,106 +40,86 @@ except Exception:
 CHANNEL_PROFILES = {
 
     "Başka Bir Hayat": """
-Create a clean 2D cartoon editorial illustration for a Turkish YouTube story video.
+Create a clean 2D cartoon editorial illustration for a Turkish YouTube life-story video.
 
-STRICT CHANNEL VISUAL IDENTITY:
-
+STRICT CHANNEL VISUAL STYLE:
 - simple clean 2D cartoon illustration
-- bold, clean dark outlines around characters and important objects
-- simplified rounded human proportions
-- rounded heads and simple facial geometry
-- small simple black dot eyes
-- minimal nose and mouth details
-- flat matte colors
-- very subtle simple shading only
-- low saturation color palette
-- beige, muted brown, taupe, gray and charcoal tones
-- clean and uncluttered environments
-- simple background architecture and furniture
-- visually readable composition
-- horizontal YouTube composition
-- 16:9 aspect ratio
-
-CHARACTER CONSISTENCY:
-
-When the recurring main male character appears, keep exactly the same
-recognizable character design throughout the entire story.
-
-The main character should have:
-- rounded head
-- simple cartoon facial features
+- bold clean dark outlines
+- rounded simplified human proportions
+- rounded heads
 - small black dot eyes
-- prominent simple ears
-- simplified body proportions
-- clean dark outlines
-- the same face shape and visual identity in every scene
+- minimal nose and mouth
+- flat matte colors
+- subtle simple shading only
+- low saturation
+- beige, muted brown, taupe, gray and charcoal palette
+- simple clean environments
+- uncluttered composition
+- clear storytelling
+- horizontal 16:9 YouTube frame
 
-His clothing, hairstyle, accessories, age appearance and condition may
-change ONLY when required by the story, but he must remain clearly
-recognizable as the same person.
+MAIN CHARACTER:
+If a reference image is supplied, the person in that image defines the
+recurring main male character.
 
-VISUAL STORYTELLING:
+Preserve:
+- same face shape
+- same eyes
+- same ears
+- same head proportions
+- same recognizable cartoon identity
+- same general body proportions
 
-Illustrate the exact narration moment as one clear scene.
-Show the character's action, environment and emotional state visually.
-Use body language and composition instead of excessive facial detail.
+Clothing and accessories may change only when logically required by the story.
 
-Each image should feel like another frame from the SAME animated
-illustrated story.
+The result must look like another frame from the same simple illustrated cartoon series.
 
 STRICTLY AVOID:
-
+- photography
 - photorealism
-- realistic photography
-- cinematic photography
-- realistic human skin
-- detailed skin texture
-- realistic facial anatomy
+- realistic skin
+- realistic human anatomy
 - 3D rendering
-- Pixar style
-- anime or manga style
-- graphic novel realism
-- painterly illustration
-- hyper-detailed environments
-- dramatic cinematic color grading
-- glossy surfaces
-- excessive textures
-- vivid saturated colors
-- complex lighting effects
+- Pixar
+- anime
+- manga
+- realistic graphic novel art
+- painterly art
+- hyper-detailed textures
+- dramatic photographic lighting
+- glossy advertising look
 - text
-- captions
 - subtitles
+- captions
 - logos
 - watermarks
-
-The result must look like a simple, consistent 2D illustrated cartoon
-story, not a photograph and not a realistic digital painting.
 """,
 
     "Sessiz Düzen": """
-Create a premium Japanese lifestyle editorial illustration.
+Create a premium calm 2D editorial illustration for a Japanese lifestyle YouTube video.
 
-VISUAL IDENTITY:
+VISUAL STYLE:
+- mature Japanese woman approximately 35-40 when required
 - elegant 2D editorial illustration
-- mature Japanese woman approximately 35-40 years old when required
 - warm beige
 - soft ivory
 - natural pale oak
 - muted sage green
 - low saturation
 - gentle natural morning light
-- calm minimalist Japanese interior aesthetic
+- minimalist Japanese interiors
 - simple cinematic composition
 - one clear scene only
-- no irrelevant decorative objects
+- no irrelevant objects
 - no vivid colors
-- no strong orange or yellow cast
-- no text, captions, logos or watermarks
-- horizontal 16:9 YouTube composition
+- no orange/yellow cast
+- no text
+- no captions
+- no logos
+- no watermarks
+- horizontal 16:9
 
-CHARACTER CONSISTENCY:
-If a reference character image is supplied,
-preserve the same woman's face, age, hairstyle and proportions.
+If a reference image is supplied, preserve the same woman's identity.
 """
 }
 
@@ -144,33 +128,24 @@ preserve the same woman's face, age, hairstyle and proportions.
 # SESSION STATE
 # -------------------------------------------------
 
-defaults = {
-    "sentences": [],
-    "images": {},
-    "prompts": {},
-    "approved": {},
-}
+if "sentences" not in st.session_state:
+    st.session_state.sentences = []
 
-for key, value in defaults.items():
-    if key not in st.session_state:
-        st.session_state[key] = value
+if "images" not in st.session_state:
+    st.session_state.images = {}
 
+if "approved" not in st.session_state:
+    st.session_state.approved = {}
 
-# -------------------------------------------------
-# IMAGE HELPER
-# -------------------------------------------------
-
-def pil_to_bytes(image):
-    buffer = io.BytesIO()
-    image.save(buffer, format="JPEG", quality=95)
-    return buffer.getvalue()
+if "prompts" not in st.session_state:
+    st.session_state.prompts = {}
 
 
 # -------------------------------------------------
-# GÖRSEL ÜRET
+# GÖRSEL ÜRETİM
 # -------------------------------------------------
 
-def generate_image(
+def generate_scene(
     scene_text,
     channel_name,
     scene_number,
@@ -180,7 +155,7 @@ def generate_image(
     if client is None:
         raise RuntimeError(
             "Gemini API bağlantısı kurulamadı. "
-            "Streamlit Secrets içindeki GEMINI_API_KEY değerini kontrol et."
+            "GEMINI_API_KEY değerini kontrol et."
         )
 
     profile = CHANNEL_PROFILES[channel_name]
@@ -188,74 +163,91 @@ def generate_image(
     prompt = f"""
 {profile}
 
-SCENE NUMBER:
-{scene_number:03}
+SCENE NUMBER: {scene_number:03}
 
 NARRATION:
-"{scene_text}"
+{scene_text}
 
-SCENE INSTRUCTION:
-Create exactly one visual scene representing this narration.
+Create exactly ONE scene for this narration.
 
-Rules:
-- Show only the moment described by the narration.
-- Do not place the narration as written text inside the image.
-- Do not add subtitles.
-- Do not invent unrelated objects or events.
-- Maintain visual continuity with the previous and following scenes.
-- Use a composition suitable for slow zoom or pan in a YouTube video.
-- Keep important subjects away from extreme frame edges.
-- Produce a cinematic horizontal 16:9 frame.
+Important:
+- visually communicate this exact moment
+- do not write narration in the image
+- do not invent unrelated actions
+- maintain the same channel art style
+- keep composition suitable for gentle zoom/pan
+- horizontal 16:9
 
-If a reference character image is provided:
-THE REFERENCE IMAGE DEFINES THE MAIN CHARACTER'S IDENTITY.
-Do not redesign the person's face.
-Do not replace the person with a similar-looking stranger.
-Preserve identity even if camera angle, emotion, clothing or location changes.
+If a character reference image is included:
+Use it as the identity and style reference for the recurring main character.
+Do not replace the character with another person.
 """
 
-    input_content = [prompt]
+    contents = [prompt]
 
     if reference_image is not None:
 
-        ref_bytes = pil_to_bytes(reference_image)
+        buffer = io.BytesIO()
+        reference_image.save(
+            buffer,
+            format="JPEG",
+            quality=95
+        )
 
-        input_content.append(
-            genai.types.Part.from_bytes(
-                data=ref_bytes,
+        contents.append(
+            types.Part.from_bytes(
+                data=buffer.getvalue(),
                 mime_type="image/jpeg"
             )
         )
 
-    interaction = client.interactions.create(
+    response = client.models.generate_content(
         model="gemini-3.1-flash-lite-image",
-        input=input_content,
-        response_format={
-            "type": "image",
-            "mime_type": "image/jpeg",
-            "aspect_ratio": "16:9",
-            "image_size": "1K",
-        },
+        contents=contents,
+        config=types.GenerateContentConfig(
+            response_modalities=["IMAGE"],
+            image_config=types.ImageConfig(
+                aspect_ratio="16:9"
+            )
+        )
     )
 
-    if not interaction.output_image:
+    image_found = None
+
+    if not response.candidates:
         raise RuntimeError(
-            "Gemini görsel döndürmedi."
+            "Gemini hiçbir aday sonuç döndürmedi."
         )
 
-    image_bytes = base64.b64decode(
-        interaction.output_image.data
-    )
+    for part in response.candidates[0].content.parts:
 
-    image = Image.open(
-        io.BytesIO(image_bytes)
-    )
+        if part.inline_data is not None:
 
-    return image, prompt
+            mime_type = (
+                part.inline_data.mime_type
+                or ""
+            )
+
+            if mime_type.startswith("image/"):
+
+                image_found = Image.open(
+                    io.BytesIO(
+                        part.inline_data.data
+                    )
+                ).convert("RGB")
+
+                break
+
+    if image_found is None:
+        raise RuntimeError(
+            "Gemini görsel çıktısı döndürmedi."
+        )
+
+    return image_found, prompt
 
 
 # -------------------------------------------------
-# KANAL
+# KANAL SEÇİMİ
 # -------------------------------------------------
 
 channel = st.selectbox(
@@ -268,43 +260,39 @@ channel = st.selectbox(
 
 
 # -------------------------------------------------
-# REFERANS KARAKTER
+# KARAKTER REFERANSI
 # -------------------------------------------------
 
 st.subheader("🎭 Karakter Referansı")
 
-reference_file = st.file_uploader(
-    "Ana karakterin referans görselini yükle",
-    type=["jpg", "jpeg", "png"],
-    help=(
-        "Bu görsel tüm sahnelerde ana karakterin kimliğini "
-        "korumak için kullanılacak."
-    )
+uploaded_reference = st.file_uploader(
+    "Ana karakter referans görselini yükle",
+    type=["png", "jpg", "jpeg"]
 )
 
 reference_image = None
 
-if reference_file is not None:
+if uploaded_reference is not None:
 
     reference_image = Image.open(
-        reference_file
+        uploaded_reference
     ).convert("RGB")
 
-    col_ref1, col_ref2 = st.columns([1, 3])
+    col_a, col_b = st.columns([1, 3])
 
-    with col_ref1:
+    with col_a:
 
         st.image(
             reference_image,
-            caption="Karakter Referansı",
+            caption="Referans karakter",
             use_container_width=True
         )
 
-    with col_ref2:
+    with col_b:
 
         st.success(
-            "Referans karakter yüklendi. "
-            "Yeni üretilen sahnelerde bu kimlik korunmaya çalışılacak."
+            "Referans yüklendi. "
+            "Sahnelerde karakter kimliğini korumak için kullanılacak."
         )
 
 else:
@@ -312,8 +300,8 @@ else:
     if channel == "Başka Bir Hayat":
 
         st.warning(
-            "Başka Bir Hayat için karakter referansı yüklemeni öneriyorum. "
-            "Referans olmadan karakter yüzü sahneler arasında değişebilir."
+            "Başka Bir Hayat için referans karakter yüklemeden "
+            "seri üretime geçme."
         )
 
 
@@ -321,16 +309,16 @@ st.divider()
 
 
 # -------------------------------------------------
-# METİN
+# VIDEO METNİ
 # -------------------------------------------------
 
 st.subheader("1. Video Metni")
 
 script = st.text_area(
     "Video metnini buraya yapıştır",
-    height=300,
-    placeholder="Hazırladığımız video metnini buraya yapıştır..."
+    height=300
 )
+
 
 if st.button(
     "Metni Cümlelere Ayır",
@@ -351,43 +339,43 @@ if st.button(
         )
 
         sentences = [
-            sentence.strip()
-            for sentence in sentences
-            if sentence.strip()
+            s.strip()
+            for s in sentences
+            if s.strip()
         ]
 
-        st.session_state["sentences"] = sentences
-        st.session_state["images"] = {}
-        st.session_state["prompts"] = {}
-        st.session_state["approved"] = {}
+        st.session_state.sentences = sentences
+        st.session_state.images = {}
+        st.session_state.approved = {}
+        st.session_state.prompts = {}
 
 
 # -------------------------------------------------
 # SAHNELER
 # -------------------------------------------------
 
-if st.session_state["sentences"]:
+if st.session_state.sentences:
 
-    sentences = st.session_state["sentences"]
+    sentences = st.session_state.sentences
 
     approved_count = sum(
         1
-        for value in st.session_state["approved"].values()
+        for value
+        in st.session_state.approved.values()
         if value
     )
 
     st.success(
-        f"Metin hazır: {len(sentences)} sahne bulundu."
+        f"{len(sentences)} sahne bulundu."
     )
 
     st.progress(
         approved_count / len(sentences)
-        if sentences
-        else 0
     )
 
     st.caption(
-        f"Onaylanan: {approved_count} / {len(sentences)}"
+        f"Onaylanan: "
+        f"{approved_count}/{len(sentences)}"
     )
 
     st.subheader("2. İlk 20 Sahne")
@@ -399,37 +387,37 @@ if st.session_state["sentences"]:
 
         with st.container(border=True):
 
-            status = (
-                "✅"
-                if st.session_state["approved"].get(index)
-                else "⏳"
+            approved = st.session_state.approved.get(
+                index,
+                False
             )
 
             st.markdown(
-                f"### {status} Sahne {index:03}"
+                f"### {'✅' if approved else '⏳'} "
+                f"Sahne {index:03}"
             )
 
             st.write(sentence)
 
-            if index in st.session_state["images"]:
+            if index in st.session_state.images:
 
                 st.image(
-                    st.session_state["images"][index],
+                    st.session_state.images[index],
                     use_container_width=True
                 )
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2 = st.columns(2)
 
             with col1:
 
-                button_text = (
+                label = (
                     "🔄 Yeniden Üret"
-                    if index in st.session_state["images"]
+                    if index in st.session_state.images
                     else "🎨 Görsel Üret"
                 )
 
                 if st.button(
-                    button_text,
+                    label,
                     key=f"generate_{index}",
                     use_container_width=True
                 ):
@@ -440,16 +428,16 @@ if st.session_state["sentences"]:
 
                         try:
 
-                            image, prompt = generate_image(
+                            image, prompt = generate_scene(
                                 scene_text=sentence,
                                 channel_name=channel,
                                 scene_number=index,
                                 reference_image=reference_image
                             )
 
-                            st.session_state["images"][index] = image
-                            st.session_state["prompts"][index] = prompt
-                            st.session_state["approved"][index] = False
+                            st.session_state.images[index] = image
+                            st.session_state.prompts[index] = prompt
+                            st.session_state.approved[index] = False
 
                             st.rerun()
 
@@ -461,45 +449,34 @@ if st.session_state["sentences"]:
 
             with col2:
 
-                if index in st.session_state["images"]:
-
-                    approve_label = (
-                        "✅ Onaylandı"
-                        if st.session_state["approved"].get(index)
-                        else "✓ Onayla"
-                    )
+                if index in st.session_state.images:
 
                     if st.button(
-                        approve_label,
+                        "✅ Onayla",
                         key=f"approve_{index}",
                         use_container_width=True,
-                        disabled=st.session_state["approved"].get(
-                            index,
-                            False
-                        )
+                        disabled=approved
                     ):
 
-                        st.session_state["approved"][index] = True
+                        st.session_state.approved[index] = True
                         st.rerun()
 
-            with col3:
+            if index in st.session_state.prompts:
 
-                if index in st.session_state["prompts"]:
+                with st.expander(
+                    "✏️ Kullanılan Prompt"
+                ):
 
-                    with st.expander(
-                        "✏️ Prompt"
-                    ):
-
-                        st.text_area(
-                            "Kullanılan prompt",
-                            st.session_state["prompts"][index],
-                            height=250,
-                            key=f"prompt_view_{index}"
-                        )
+                    st.text_area(
+                        "Prompt",
+                        st.session_state.prompts[index],
+                        height=240,
+                        key=f"prompt_{index}"
+                    )
 
     if len(sentences) > 20:
 
         st.info(
-            f"Şimdilik ilk 20 sahne gösteriliyor. "
+            f"İlk 20 sahne gösteriliyor. "
             f"Toplam {len(sentences)} sahne var."
         )
